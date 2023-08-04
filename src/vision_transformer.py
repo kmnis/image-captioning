@@ -965,3 +965,5 @@ if __name__ == '__main__':
         min_delta=1e-3,
         restore_best_model=True
     )
+    
+    trainer.fit()
