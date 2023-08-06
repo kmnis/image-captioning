@@ -45,6 +45,8 @@ def parser() -> argparse.ArgumentParser:
 
     # Flag (true/false) testing with small samples
     parser.add_argument('--test_mode', action='store_true')
+    parser.add_argument('--shuffle', action='store_true')
+    parser.add_argument('--pin_memory', action='store_true')
 
     return parser
 
