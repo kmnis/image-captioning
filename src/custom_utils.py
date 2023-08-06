@@ -42,13 +42,9 @@ def parser() -> argparse.ArgumentParser:
         An ArgumentParser object that contains the arguments passed from command line.
     """
     parser = argparse.ArgumentParser()
-    
-    # Optuna arguments
-    parser.add_argument('--n_trials', type=int, default=20)
-    parser.add_argument('--n_jobs', type=int, default=-1)
 
     # Flag (true/false) testing with small samples
-    parser.add_argument('--test_mode', type=int, default=0)
+    parser.add_argument('--test_mode', action='store_true')
 
     return parser
 
