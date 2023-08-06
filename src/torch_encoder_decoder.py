@@ -224,15 +224,23 @@ class CaptionModel(nn.Module):
                 # Return the index of the word with the highest score
                 predicted = output.argmax(1)
                 # Use 'item' to return a standard python number
-                result_caption.append(predicted.item())
+                predicted_token = vocabulary.index_to_token[predicted.item()]
+                
+                # Check if the predicted token is the <UNK> token
+                if predicted_token == '<UNK>':
+                    # If so, continue to the next iteration
+                    continue
+                
+                result_caption.append(predicted_token)
+                
+                if predicted_token == '<EOS>':
+                    break
+                
                 # Embed the last predicted word to be the new input of the LSTM
                 x = self.decoder_rnn.embed(predicted).unsqueeze(0)
 
-                if vocabulary.index_to_token[predicted.item()] == '<EOS>':
-                    break
-
-        # Convert indices to tokens and return generated caption 
-        return [vocabulary.index_to_token[idx] for idx in result_caption]
+        # Return generated caption (without the <SOS> and <EOS> tokens)
+        return result_caption[1:-1]
     
 # ------------------------------ Early stopping ------------------------------ #
 
@@ -302,7 +310,10 @@ class Trainer(object):
                  hyperparameters: Dict[str, Any], 
                  train: Dict[str, Union[DataLoader, FlickrDataset]],
                  val: Dict[str, Union[DataLoader, FlickrDataset]],
-                 logger: logging.Logger):
+                 logger: logging.Logger,
+                 patience: int = 5,
+                 min_delta: float = 1e-3,
+                 restore_best_model: bool = True):
         """
         Constructor for the Trainer class.
 
@@ -316,6 +327,12 @@ class Trainer(object):
             Validation data loader and custom dataset: {'loader': val_loader, 'dataset': val_dataset}
         logger : logging.Logger
             Logger object for logging.
+        patience : int, optional
+            Number of epochs with no improvement after which training will be stopped, by default 5.
+        min_delta : float, optional
+            Minimum change in the monitored quantity to qualify as an improvement, by default 1e-3.
+        restore_best_model : bool, optional
+            Whether to restore the weights of the model from the epoch with the best value, by default True.
         """
         # Encoder (CNN) hyperparameters
         self.fine_tune = hyperparameters['fine_tune']
@@ -349,13 +366,14 @@ class Trainer(object):
             weight_decay=self.l2_reg
         )
         
-        self.early_stopping = EarlyStopping()
+        self.early_stopping = EarlyStopping(patience=patience, min_delta=min_delta, restore_best_model=restore_best_model)
         self.logger = logger
         
     def replace_oov_tokens(self, captions: torch.Tensor) -> torch.Tensor:
         """
         Replace out-of-vocabulary tokens in captions with the '<UNK>' token.
         """
+        # If any token index is greater than the vocabulary size, replace it with the '<UNK>' token, or else keep the original token index
         return torch.where(captions < len(self.train['dataset'].vocab), captions, self.train['dataset'].vocab.token_to_index['<UNK>'])
         
     def evaluate_model(self) -> float:
@@ -438,6 +456,7 @@ if __name__ == '__main__':
     # ---------------------------------- Set up ---------------------------------- #
     
     from custom_utils import get_logger, parser, add_additional_args
+    from PIL import Image
     
     logger = get_logger('torch_encoder_decoder')
     
@@ -485,22 +504,25 @@ if __name__ == '__main__':
     
     hyperparamters = {
         'fine_tune': True,
-        'hidden_size': 32,
+        'hidden_size': 8,
         'num_layers': 1,
-        'embed_size': 32,
+        'embed_size': 8,
         'dropout': 0.5,
         'l2_reg': 0.0,
         'learning_rate': 0.001,
         'beta_1': 0.9,
         'beta_2': 0.999,
-        'epochs': 2
+        'epochs': 1
     }
     
     trainer = Trainer(
         hyperparamters,
         train={'loader': train_loader, 'dataset': train_dataset},
         val={'loader': val_loader, 'dataset': val_dataset},
-        logger=logger
+        logger=logger,
+        patience=5,
+        min_delta=1e-3,
+        restore_best_model=True
     )
     
     model, best_val_loss = trainer.train_model()
