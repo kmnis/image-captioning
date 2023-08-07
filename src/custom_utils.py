@@ -4,6 +4,8 @@ from typing import Tuple, Union, List, Dict, Any, Optional, Callable
 import logging
 import sys
 import json
+import IPython.display as display
+import plotly.graph_objs as go
 
 # ---------------------------------- Logger ---------------------------------- #
 
@@ -83,3 +85,33 @@ def add_additional_args(parser_func: Callable, additional_args: Dict[str, type])
         return args
 
     return wrapper
+
+# --------- Function to visualize hyperparameter optimization results -------- #
+
+def plot_hpo(fig: go.Figure, height: int = 500, width: int = 1000) -> display.Image:
+    """
+    Convert a plotly figure to a static image and display it.
+
+    Parameters
+    ----------
+    fig : go.Figure
+        The plotly figure to be converted.
+    height : int, optional
+        The height of the output image, by default 500.
+    width : int, optional
+        The height of the output image, by default 1000.
+
+    Returns
+    -------
+    IPython.display.Image
+        The static image for display.
+
+    Examples
+    --------
+    >>> fig = go.Figure(data=go.Bar(y=[2, 3, 1]))
+    >>> display_image = plot_to_display_image(fig)
+    >>> display.display(display_image)
+    """
+    fig.update_layout(height=height, width=width)
+    fig_static = fig.to_image('png')
+    return display.Image(fig_static)
